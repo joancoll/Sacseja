@@ -7,25 +7,38 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
-import android.view.View;
+import android.widget.TextView;
 
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener{
-    private SensorManager sensorManager;
-    private boolean isColor = false;
-    private View view;
-    private long lastUpdate;
+    // Members
+    private final int IDLE_TIME = 200; //temps mínim entre sacsejades
+    private SensorManager sensorManager; //gestor de sensors
+    private boolean colorFlag = false; //per canviar color
+    private long lastUpdate; //per control de temps mínim entre sacsejades
+    private TextView tv_main; //per instruccions i canviar color de fons
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        view = findViewById(R.id.textView);
-        view.setBackgroundColor(Color.RED);
+        initViews();
+        initSensor();
+    }
 
+    private void initViews() {
+        tv_main = findViewById(R.id.tv_main);
+        tv_main.setBackgroundColor(Color.RED);
+    }
+
+    private void initSensor() {
+        //obtenim el gestor de sensors
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        //obtenim l'hora actual en milisegons per controlar un temps mínim entre sacsejades
         lastUpdate = System.currentTimeMillis();
     }
+
+
     //sobreescriu els mètodes del SensorEventListener
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {}
@@ -34,37 +47,40 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             getAccelerometer(event);
         }
-
     }
 
+    //Si hi ha algun canvi en els sensors registrats, es cridarà aquest mètode
     private void getAccelerometer(SensorEvent event) {
+        //obtenim els valors del sensor
         float[] values = event.values;
         // Movement
         float x = values[0];
         float y = values[1];
         float z = values[2];
-
         float accelationSquareRoot = (x * x + y * y + z * z)
                 / (SensorManager.GRAVITY_EARTH * SensorManager.GRAVITY_EARTH);
-
         long actualTime = System.currentTimeMillis();
         //Per testejar valors
         //Toast.makeText(getApplicationContext(),String.valueOf(accelationSquareRoot)+" "+ SensorManager.GRAVITY_EARTH,Toast.LENGTH_SHORT).show();
-
         if (accelationSquareRoot >= 2) //s'esecutarà si es sacseja
         {
-
-            if (actualTime - lastUpdate < 200) {
+            //Si fa poc temps dels darrer canvi no fem res
+            if (actualTime - lastUpdate < IDLE_TIME) {
                 return;
             }
-            lastUpdate = actualTime;//actualitza lastUpdate per la següent sacsejada
-            if (isColor) {
-                view.setBackgroundColor(Color.GREEN);
+            //quan ha passat el mínim temps entre sacsejades
+            lastUpdate = actualTime;// actualitzem el temps
+            //canviem el color de fons
+            changeBackgroundColor(colorFlag);
+            colorFlag = !colorFlag;
+        }
+    }
 
-            } else {
-                view.setBackgroundColor(Color.RED);
-            }
-            isColor = !isColor;
+    private void changeBackgroundColor(Boolean isColor) {
+        if (isColor) {
+            tv_main.setBackgroundColor(Color.GREEN);
+        } else {
+            tv_main.setBackgroundColor(Color.RED);
         }
     }
 
@@ -79,7 +95,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     protected void onPause() {
-        // desregistre el listener
+        // desregistra el listener quan passa a segon pla
         super.onPause();
         sensorManager.unregisterListener(this);
     }
